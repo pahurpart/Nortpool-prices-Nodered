@@ -1,0 +1,50 @@
+let tariff = { "Day": 0.0538, "Night": 0.0314 }; // Need hinnad on juba käibemaksuga / These prices already include VAT
+let vat_rate = 1.22; // Käibemaksumäär 22% / VAT rate 22%
+
+// Riiklikud maksud (käibemaksuga) / National taxes (including VAT)
+let renewable_energy_fee = 0.0102; // Taastuvenergia tasu €/kWh (1,02 s/kWh) / Renewable energy fee €/kWh (1.02 s/kWh)
+let excise_duty = 0.00177; // Elektriaktsiis €/kWh (0,177 s/kWh) / Excise duty €/kWh (0.177 s/kWh)
+
+// Kontrollime, kas `raw_today` ja `raw_tomorrow` andmed on saadaval / Check if `raw_today` and `raw_tomorrow` data are available
+if (!msg.payload.attributes.raw_today || !msg.payload.attributes.raw_tomorrow) {
+    node.error("Missing raw_today or raw_tomorrow data"); // Puuduvad andmed / Missing data
+    return null;
+}
+
+// Funktsioon tariifi arvutamiseks / Function to calculate tariff
+function calculateTariff(hour, weekday) {
+    // Tööpäevad (E-R), päevatariif (07:00–22:00) / Weekdays (Monday to Friday), day tariff (07:00–22:00)
+    if (weekday >= 1 && weekday <= 5 && hour >= 7 && hour < 22) {
+        return tariff.Day; // Kasutame käibemaksuga tariifi / Use VAT-included day tariff
+    }
+    // Muudel aegadel öötariif / Night tariff at other times
+    return tariff.Night; // Kasutame käibemaksuga tariifi / Use VAT-included night tariff
+}
+
+// Kombineerime `raw_today` ja `raw_tomorrow` / Combine `raw_today` and `raw_tomorrow`
+let all_prices = msg.payload.attributes.raw_today.concat(msg.payload.attributes.raw_tomorrow);
+
+// Töötleme kõik saadaval olevad tunnid / Process all available hours
+let future_prices = all_prices.map(entry => {
+    let date = new Date(entry.start); // Muudame algusaja kuupäevaks / Convert the start time to a Date object
+    let hour = date.getHours(); // Saame kellaaja / Get the hour from the Date object
+    let weekday = date.getDay(); // 0 = Pühapäev, 1 = Esmaspäev, jne. / 0 = Sunday, 1 = Monday, etc.
+
+    // Arvutame hinna, lisades ainult riiklikud maksud / Calculate the base price, adding only the national taxes
+    let base_price = entry.value + calculateTariff(hour, weekday);
+
+    // Lisame riiklikud maksud (koos käibemaksuga) / Add national taxes (with VAT)
+    let total_price = base_price + renewable_energy_fee + excise_duty;
+
+    // Ümardame hinna kolm kohta pärast koma / Round the price to three decimal places
+    total_price = total_price.toFixed(3);  // Ümardamine kolme kohta / Rounding to three decimal places
+
+    return {
+        time: date.toISOString(), // ISO formaadis aeg / ISO format time
+        price: parseFloat(total_price) // Tagastame hinna täisarvuna (numbrina) / Return the price as a float (number)
+    };
+});
+
+// Tagastame kõik töödeldud tunnid / Return all processed hours
+msg.payload = future_prices;
+return msg;
