@@ -1,0 +1,134 @@
+[
+    {
+        "id": "3d0acd8bf57850a1",
+        "type": "tab",
+        "label": "Flow 3",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "f8fdee5890719044",
+        "type": "inject",
+        "z": "3d0acd8bf57850a1",
+        "name": "Start Workflow",
+        "props": [],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 140,
+        "y": 520,
+        "wires": [
+            [
+                "eb9bad17eedf5aa2"
+            ]
+        ]
+    },
+    {
+        "id": "eb9bad17eedf5aa2",
+        "type": "api-current-state",
+        "z": "3d0acd8bf57850a1",
+        "name": "Get Nordpool Data2",
+        "server": "217ec4c.5310a3c",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.nordpool_kwh_ee_eur_3_10_022",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            }
+        ],
+        "for": 0,
+        "forType": "num",
+        "forUnits": "minutes",
+        "x": 350,
+        "y": 520,
+        "wires": [
+            [
+                "5b5d31d27427b76e"
+            ]
+        ]
+    },
+    {
+        "id": "266a25b98919c4f4",
+        "type": "debug",
+        "z": "3d0acd8bf57850a1",
+        "name": "Show Nordpool Output",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 950,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "5b5d31d27427b76e",
+        "type": "function",
+        "z": "3d0acd8bf57850a1",
+        "name": "Imatra võrk pus alexela börss",  
+        "func": "let tariff = { \"Day\": 0.0538, \"Night\": 0.0314 }; // Need hinnad on juba käibemaksuga\nlet vat_rate = 1.22; // Käibemaksumäär 22%\n\n// Riiklikud maksud (käibemaksuga)\nlet renewable_energy_fee = 0.0102; // Taastuvenergia tasu €/kWh (1,02 s/kWh)\nlet excise_duty = 0.00177; // Elektriaktsiis €/kWh (0,177 s/kWh)\n\n// Kontrollime, kas `raw_today` ja `raw_tomorrow` andmed on saadaval\nif (!msg.payload.attributes.raw_today || !msg.payload.attributes.raw_tomorrow) {\n    node.error(\"Missing raw_today or raw_tomorrow data\");\n    return null;\n}\n\n// Funktsioon tariifi arvutamiseks\nfunction calculateTariff(hour, weekday) {\n    // Tööpäevad (E-R), päevatariif (07:00–22:00)\n    if (weekday >= 1 && weekday <= 5 && hour >= 7 && hour < 22) {\n        return tariff.Day; // Kasutame käibemaksuga tariifi\n    }\n    // Muudel aegadel öötariif\n    return tariff.Night; // Kasutame käibemaksuga tariifi\n}\n\n// Kombineerime `raw_today` ja `raw_tomorrow`\nlet all_prices = msg.payload.attributes.raw_today.concat(msg.payload.attributes.raw_tomorrow);\n\n// Töötleme kõik saadaval olevad tunnid\nlet future_prices = all_prices.map(entry => {\n    let date = new Date(entry.start);\n    let hour = date.getHours();\n    let weekday = date.getDay(); // 0 = Pühapäev, 1 = Esmaspäev, jne.\n\n    // Arvutame hinna, lisades ainult riiklikud maksud\n    let base_price = entry.value + calculateTariff(hour, weekday);\n\n    // Lisame riiklikud maksud (koos käibemaksuga)\n    let total_price = base_price + renewable_energy_fee + excise_duty;\n\n    // Ümardame hinna kolm kohta pärast koma\n    total_price = total_price.toFixed(3);  // Ümardamine kolme kohta\n\n    return {\n        time: date.toISOString(), // ISO formaadis aeg\n        price: parseFloat(total_price) // Tagastame hinna täisarvuna (numbrina)\n    };\n});\n\n// Tagastame kõik töödeldud tunnid\nmsg.payload = future_prices;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 630,
+        "y": 560,
+        "wires": [
+            [
+                "266a25b98919c4f4",
+                "682577b98314c3a6"
+            ]
+        ]
+    },
+    {
+        "id": "682577b98314c3a6",
+        "type": "ha-api",
+        "z": "3d0acd8bf57850a1",
+        "name": "sensor.calculated_electric_price",
+        "server": "217ec4c.5310a3c",
+        "version": 1,
+        "debugenabled": false,
+        "protocol": "websocket",
+        "method": "get",
+        "path": "",
+        "data": "{\t  \"state\": \"0.856\",  // Näide hind, mis saadetakse\t  \"attributes\": {\t    \"unit_of_measurement\": \"EUR/kWh\",\t    \"friendly_name\": \"Calculated Electric Price\"\t  }\t}",
+        "dataType": "jsonata",
+        "responseType": "json",
+        "outputProperties": [
+            {
+                "property": "payload",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "results"
+            }
+        ],
+        "x": 950,
+        "y": 660,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "217ec4c.5310a3c",
+        "type": "server",
+        "name": "Home Assistant",
+        "addon": true
+    }
+]
