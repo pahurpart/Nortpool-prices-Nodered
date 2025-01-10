@@ -1,0 +1,17 @@
+Electricity Pricing Integration - Börsi and Network Prices
+This project integrates electricity prices from the Nord Pool exchange and network prices with Home Assistant using Node-RED. It pulls the data for tomorrow's prices and the network tariffs, updates the prices for the next 48 hours, and dynamically pushes them to Home Assistant's sensors for use in automations or monitoring.
+
+Project Overview
+This integration retrieves the Nord Pool exchange prices for electricity and network tariffs for the next 48 hours. If the data is not yet available, it retries up to 10 times with a 1-hour interval, making sure the information is available before sending it to Home Assistant.
+
+The integration works by combining the Börsi (Nord Pool) exchange prices with network tariffs, adding VAT where necessary and updating the data regularly.
+
+Key Features
+Retrieves Börsi (Nord Pool) prices for electricity in EUR/kWh.
+Retrieves network tariffs with VAT adjustments.
+Updates Home Assistant with the next 48 hours of prices.
+Retries up to 10 times if the data is not available initially.
+Sends dynamic data to Home Assistant sensors with timestamps for each price.
+Requirements
+Node-RED: The integration uses Node-RED to manage the flow of data.
+Home Assistant: The prices will be sent as sensors to Home Assistant for automation and monitoring.
